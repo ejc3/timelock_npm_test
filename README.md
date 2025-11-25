@@ -35,3 +35,20 @@ Yarn will fetch packages through the timelock proxy, which enforces the minimum 
 yarn config get registry
 # Output: https://timelock-npm-registry.dev/lock/1440/
 ```
+
+## Debug Mode
+
+Use `--verbose` to see exactly where packages are fetched from:
+
+```bash
+yarn install --verbose
+```
+
+Example output showing the timelock proxy in action:
+
+```
+verbose 0.139 Performing "GET" request to "https://timelock-npm-registry.dev/lock/1440/lodash".
+verbose 0.288 Request "https://timelock-npm-registry.dev/lock/1440/lodash" finished with status code 200.
+```
+
+This confirms that package metadata is fetched through the timelock proxy, which checks the package's publish date before allowing installation.
