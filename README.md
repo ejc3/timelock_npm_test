@@ -90,45 +90,36 @@ lodash@^4.17.21:
 
 Yarn uses these values directly for locked packages - **it doesn't ask timelock again**.
 
-### Verification Steps
+### Verification Before Installing
 
-Before committing changes to `yarn.lock`, verify all tarballs come from `registry.npmjs.org`:
+**IMPORTANT:** Verify the lockfile *before* running `yarn install` to avoid executing malicious postinstall scripts.
 
 ```bash
-# Check all resolved URLs in lockfile
+# 1. First, just look at what's in the lockfile (no scripts run)
 grep "resolved" yarn.lock
 
-# Fail if any non-npmjs URLs are found
-grep "resolved" yarn.lock | grep -v "registry.npmjs.org" && echo "WARNING: Non-npmjs tarball found!" || echo "✓ All tarballs from npmjs.org"
+# 2. Check for any non-npmjs URLs (should return nothing)
+grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
 ```
+
+If step 2 returns any URLs, **do not run `yarn install`** until you've investigated.
+
+### Safe Installation Order
+
+1. **Clone/pull the repo** (lockfile is just a text file, safe to read)
+2. **Inspect yarn.lock** - verify all `resolved` URLs point to `registry.npmjs.org`
+3. **Only then run `yarn install`** - which downloads tarballs and runs postinstall scripts
 
 ### CI Protection
 
 Use `--frozen-lockfile` in CI to prevent lockfile changes:
 
 ```bash
+# Verify lockfile first (no scripts run)
+grep "resolved" yarn.lock | grep -v "registry.npmjs.org" && exit 1
+
+# Then install
 yarn install --frozen-lockfile
 ```
 
-This fails if any package would need to be resolved fresh, ensuring only pre-verified lockfile entries are used.
-
-### Recommended Workflow
-
-1. **When adding/updating packages locally:**
-   ```bash
-   yarn add <package>
-   # Review the new yarn.lock entries
-   grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
-   # If empty, safe to commit
-   ```
-
-2. **In CI/CD:**
-   ```bash
-   yarn install --frozen-lockfile
-   ```
-
-3. **Periodic audit:**
-   ```bash
-   # Verify no lockfile entries point to unexpected registries
-   grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
-   ```
+This ensures only pre-verified lockfile entries are used.
