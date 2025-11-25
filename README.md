@@ -90,36 +90,42 @@ lodash@^4.17.21:
 
 Yarn uses these values directly for locked packages - **it doesn't ask timelock again**.
 
-### Verification Before Installing
+### Safe Workflow for Adding/Updating Packages
 
-**IMPORTANT:** Verify the lockfile *before* running `yarn install` to avoid executing malicious postinstall scripts.
+When you add or update packages, you want to verify the lockfile **before** any package scripts run.
 
 ```bash
-# 1. First, just look at what's in the lockfile (no scripts run)
-grep "resolved" yarn.lock
+# 1. Add/update package with --ignore-scripts (downloads tarball, updates lockfile, but runs NO scripts)
+yarn add <package> --ignore-scripts
 
-# 2. Check for any non-npmjs URLs (should return nothing)
+# 2. Verify all resolved URLs point to npmjs.org (should return nothing)
 grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
+
+# 3. If step 2 is clean, run install to execute postinstall scripts
+yarn install
 ```
 
-If step 2 returns any URLs, **do not run `yarn install`** until you've investigated.
+**Why this works:**
+- `--ignore-scripts` downloads the package and updates `yarn.lock`, but skips all lifecycle scripts (preinstall, install, postinstall)
+- You can inspect the lockfile safely before any code executes
+- Only after verification do you run `yarn install` to execute scripts
 
-### Safe Installation Order
+### Verifying an Existing Lockfile (e.g., after clone)
 
-1. **Clone/pull the repo** (lockfile is just a text file, safe to read)
-2. **Inspect yarn.lock** - verify all `resolved` URLs point to `registry.npmjs.org`
-3. **Only then run `yarn install`** - which downloads tarballs and runs postinstall scripts
+```bash
+# Just inspect the lockfile (plain text, no code runs)
+grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
+
+# If clean, install
+yarn install
+```
 
 ### CI Protection
-
-Use `--frozen-lockfile` in CI to prevent lockfile changes:
 
 ```bash
 # Verify lockfile first (no scripts run)
 grep "resolved" yarn.lock | grep -v "registry.npmjs.org" && exit 1
 
-# Then install
+# Then install with frozen lockfile
 yarn install --frozen-lockfile
 ```
-
-This ensures only pre-verified lockfile entries are used.
