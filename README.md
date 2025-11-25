@@ -63,3 +63,72 @@ verbose 0.256 Performing "GET" request to "https://registry.npmjs.org/lodash/-/l
 2. **Tarball download** → actual package contents come directly from `registry.npmjs.org`
 
 The timelock proxy acts as a gatekeeper for package metadata, but doesn't proxy the actual package downloads.
+
+## Security Considerations
+
+### Trust Model
+
+When using any third-party registry proxy (including timelock), you're trusting it to return legitimate metadata. If the proxy were compromised, it could:
+
+1. Modify the `tarball` URL to point to a malicious server
+2. Modify the `integrity` hash to match the malicious tarball
+
+**The integrity hash alone doesn't protect you** - it's provided by the same source as the tarball URL.
+
+### How yarn.lock Protects You
+
+Once you commit `yarn.lock`, it contains hardcoded:
+- `resolved` - the exact tarball URL (e.g., `registry.npmjs.org`)
+- `integrity` - the SHA-512 hash of the tarball
+
+```
+lodash@^4.17.21:
+  version "4.17.21"
+  resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz#679591c564c3bffaae8454cf0b3df370c3d6911c"
+  integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
+```
+
+Yarn uses these values directly for locked packages - **it doesn't ask timelock again**.
+
+### Verification Steps
+
+Before committing changes to `yarn.lock`, verify all tarballs come from `registry.npmjs.org`:
+
+```bash
+# Check all resolved URLs in lockfile
+grep "resolved" yarn.lock
+
+# Fail if any non-npmjs URLs are found
+grep "resolved" yarn.lock | grep -v "registry.npmjs.org" && echo "WARNING: Non-npmjs tarball found!" || echo "✓ All tarballs from npmjs.org"
+```
+
+### CI Protection
+
+Use `--frozen-lockfile` in CI to prevent lockfile changes:
+
+```bash
+yarn install --frozen-lockfile
+```
+
+This fails if any package would need to be resolved fresh, ensuring only pre-verified lockfile entries are used.
+
+### Recommended Workflow
+
+1. **When adding/updating packages locally:**
+   ```bash
+   yarn add <package>
+   # Review the new yarn.lock entries
+   grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
+   # If empty, safe to commit
+   ```
+
+2. **In CI/CD:**
+   ```bash
+   yarn install --frozen-lockfile
+   ```
+
+3. **Periodic audit:**
+   ```bash
+   # Verify no lockfile entries point to unexpected registries
+   grep "resolved" yarn.lock | grep -v "registry.npmjs.org"
+   ```
