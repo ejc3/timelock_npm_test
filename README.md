@@ -41,14 +41,25 @@ yarn config get registry
 Use `--verbose` to see exactly where packages are fetched from:
 
 ```bash
+# Clear cache first to see full flow
+yarn cache clean lodash
 yarn install --verbose
 ```
 
-Example output showing the timelock proxy in action:
+Example output showing the two-step fetch process:
 
 ```
-verbose 0.139 Performing "GET" request to "https://timelock-npm-registry.dev/lock/1440/lodash".
-verbose 0.288 Request "https://timelock-npm-registry.dev/lock/1440/lodash" finished with status code 200.
+# 1. Package METADATA is fetched through timelock proxy (checks publish age)
+verbose 0.120 Performing "GET" request to "https://timelock-npm-registry.dev/lock/1440/lodash".
+verbose 0.250 Request "https://timelock-npm-registry.dev/lock/1440/lodash" finished with status code 200.
+
+# 2. Package TARBALL is downloaded directly from npm registry
+verbose 0.256 Performing "GET" request to "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz".
 ```
 
-This confirms that package metadata is fetched through the timelock proxy, which checks the package's publish date before allowing installation.
+### How it works
+
+1. **Metadata request** → timelock proxy checks if the package version is old enough (24h+)
+2. **Tarball download** → actual package contents come directly from `registry.npmjs.org`
+
+The timelock proxy acts as a gatekeeper for package metadata, but doesn't proxy the actual package downloads.
