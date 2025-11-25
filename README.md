@@ -1,0 +1,37 @@
+# timelock_npm_test
+
+Test project demonstrating [timelock-npm-registry](https://github.com/pyoner/timelock-npm-registry) with Yarn 1.x.
+
+## What is timelock-npm-registry?
+
+A proxy npm registry that adds supply chain attack protection by requiring packages to be at least N minutes old before installation. This delays newly published (potentially malicious) versions.
+
+## Configuration
+
+### `.yarnrc` (Yarn 1.x format)
+```
+registry "https://timelock-npm-registry.dev/lock/1440/"
+```
+
+### `.npmrc` (for compatibility)
+```
+registry=https://timelock-npm-registry.dev/lock/1440/
+```
+
+The `1440` means packages must be at least 24 hours (1440 minutes) old.
+
+## Usage
+
+```bash
+yarn install
+```
+
+Yarn will fetch packages through the timelock proxy, which enforces the minimum age requirement.
+
+## Verification
+
+```bash
+# Check registry is configured
+yarn config get registry
+# Output: https://timelock-npm-registry.dev/lock/1440/
+```
